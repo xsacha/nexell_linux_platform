@@ -18,6 +18,7 @@ INSTALL			 = install
 
 CFLAGS			+= -Wall -O2
 CFLAGS			+= -I../include -I../kernel-headers
+OPENCVLIB=-lopencv_core -lopencv_highgui -lopencv_imgproc
 
 ifeq ($(USE_STATIC_LIB),y)
 LIBS			+= \
@@ -31,7 +32,7 @@ LIBS			+= -L../libnxmalloc -lnxvmem
 LIBS			+= -L../libnxv4l2 -lv4l2-nexell
 LIBS			+= -L../libnxvpu -lnxvpu
 endif
-LIBS			+= -L../prebuilt -lnxvidrc
+LIBS			+= -L../prebuilt -lnxvidrc $(OPENCVLIB)
 
 
 # -----------------------------------------------------------------------
@@ -44,7 +45,7 @@ all: $(TARGET)
 %.o: %.cpp
 	$(CPP) $(CFLAGS) -c -o $@ $<
 
-nanocams: NXJpegHWEnc.o nanocams.o
+nanocams: nanocams.o
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS) -lstdc++
 
 
