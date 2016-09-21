@@ -32,7 +32,6 @@
 
 #include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
-#include <linux/videodev2_nxp_media.h>
 #include <linux/nxp_ion.h>
 
 #include <ion.h>
@@ -144,8 +143,6 @@ static int init_preview(int width, int height, int format)
 		__V4L2_S(v4l2_set_format(nxp_v4l2_sensor0, 800, 600, FMT_SENDOR));
 	__V4L2_S(v4l2_set_format(nxp_v4l2_sensor0, width, height, FMT_SENDOR));
 
-	__V4L2_S(v4l2_set_ctrl(nxp_v4l2_sensor0, V4L2_CID_EXPOSURE_AUTO, 0));
-
 	__V4L2_S(v4l2_reqbuf(nxp_v4l2_clipper0, MAX_BUFFER_COUNT));
 	return 0;
 }
@@ -226,7 +223,7 @@ int main(int argc, char *argv[])
 	bool grey = false;
         int width = 800;
         int height = 600;
-        int count = 30;
+        int count = 100;
 #endif
 
 	int ion_fd = ion_open();
@@ -254,14 +251,14 @@ int main(int argc, char *argv[])
 	ret = alloc_buffers(ion_fd, MAX_BUFFER_COUNT, bufs,
 			width, height, FMT_PREVIEW);
 
-	auto baseTime = std::chrono::high_resolution_clock::now();
 	if (ret >= 0 && width > 0) {
 		init_preview(width, height, FMT_PREVIEW);
+		auto baseTime = std::chrono::high_resolution_clock::now();
 		do_preview(bufs, width, height, count, grey);
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		int millisecondsPassed = (int)std::chrono::duration_cast<std::chrono::milliseconds>(currentTime - baseTime).count();
+		printf("Took %.2f seconds to show %i frames. %.2f FPS.\n", millisecondsPassed / 1000.0f, count, (float)count/(float)(millisecondsPassed/1000.0));
 	}
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	int secondsPassed = (int)std::chrono::duration_cast<std::chrono::seconds>(currentTime - baseTime).count();
-	printf("Took %i seconds to show %i frames. %f FPS.\n", secondsPassed, count, (float)count/(float)secondsPassed);
 
 	v4l2_exit();
 	close(ion_fd);
