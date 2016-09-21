@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------
-# Makefile for building Camera Demo
+# Makefile for building OpenCV Camera Demo
 #
 # Copyright 2016 FriendlyARM (http://www.friendlyarm.net/)
 #
@@ -15,8 +15,8 @@ CROSS_COMPILE	?= arm-linux-
 else
 CROSS_COMPILE	?=
 endif
-CC				 = $(CROSS_COMPILE)gcc
-CPP				 = $(CROSS_COMPILE)g++
+CC			 = $(CROSS_COMPILE)gcc
+CPP			 = $(CROSS_COMPILE)g++
 INSTALL			 = install
 
 

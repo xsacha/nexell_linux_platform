@@ -39,6 +39,9 @@
 #include <nxp-v4l2.h>
 
 #include "opencv2/opencv.hpp"
+#if CV_MAJOR_VERSION >= 3
+#include "opencv2/utility.hpp"
+#endif
 
 #include <chrono>
 #include "yuv2rgb.neon.h"
@@ -59,19 +62,12 @@ static inline int get_size(int format, int num, int width, int height)
 	height = ALIGN(height, 32);
 
 	switch (format) {
-		case V4L2_PIX_FMT_YUYV:
-			if (num > 0) return 0;
-			size = (width * height) * 2;
-			break;
 		case V4L2_PIX_FMT_YUV420M:
 		case V4L2_PIX_FMT_YUV422P:
 			if (num == 0)
 				size = width * height;
 			else
 				size = (width * height) >> 1;
-			break;
-		case V4L2_PIX_FMT_YUV444:
-			size = width * height;
 			break;
 		default:
 			size = width * height * 2;
@@ -85,14 +81,9 @@ int alloc_buffers(int ion_fd, int count, struct nxp_vid_buffer *bufs,
 		int width, int height, int format)
 {
 	struct nxp_vid_buffer *vb;
-	int plane_num;
+	int plane_num = 3;
 	int i, j;
 	int ret;
-
-	if (format == V4L2_PIX_FMT_YUYV || format == V4L2_PIX_FMT_RGB565)
-		plane_num = 1;
-	else
-		plane_num = 3;
 
 	int size[plane_num];
 	for (j = 0; j < plane_num; j++)
@@ -182,14 +173,11 @@ static int do_preview(struct nxp_vid_buffer *bufs, int width, int height,
 	}
 
 	int cap_index = 0;
-	int out_index = 0;
 	cv::namedWindow("preview",1);
 
 	for (i = 0; i < preview_frames; i++) {
 		buf = &bufs[cap_index];
 		v4l2_dqbuf(nxp_v4l2_clipper0, buf->plane_num, &cap_index, NULL);
-
-		++out_index %= MAX_BUFFER_COUNT;
 
 		cv::Mat out;
 		if (grey)
@@ -212,42 +200,34 @@ static int do_preview(struct nxp_vid_buffer *bufs, int width, int height,
 }
 
 // --------------------------------------------------------
-
-/* MLC/video works improperly for YUV420M @800x600,1600x1200 */
 #define FMT_PREVIEW	V4L2_PIX_FMT_YUV422P
-
-// --------------------------------------------------------
-
-static void show_usage(char *name)
-{
-	fprintf(stderr, "Usage: %s [OPTION]...\n\n", name);
-	fprintf(stderr, "Options:\n");
-	fprintf(stderr, "  -n COUNT    show given number of frames then capture\n");
-	fprintf(stderr, "  -h          display this help and exit\n\n");
-	fprintf(stderr, "\n");
-	fprintf(stderr, "OpenCV Camera demo for S5P6818 board\n");
-}
 
 int main(int argc, char *argv[])
 {
-	int width_p = 0, height_p = 0, count_p = 30;
-	int opt;
-	bool grey = false;
-
-	while (-1 != (opt = getopt(argc, argv, "n:g:h"))) {
-		switch (opt) {
-			case 'n': count_p = atoi(optarg); break;
-			case 'g': grey = true; break;
-			case '?': fprintf(stderr, "\n");
-			case 'h': show_usage(argv[0]);  exit(0); break;
-			default:
-					  break;
-		}
+#if CV_MAJOR_VERSION >= 3
+	const cv::String keys = 
+		"{help h usage ? |       | print this message   }"
+		"{width w        |800    | camera output width  }"
+		"{height h       |600    | camera output height }"
+		"{count n        |30     | camera output frames }"
+		"{grey g         |false  | camera output grey   }";
+	cv::CommandLineParser parser(argc, argv, keys);
+	parser.about("Nexell OpenCV Camera Test");
+	if (parser.has("help"))
+	{
+		parser.printMessage();
+		return 0;
 	}
-
-	// Hardcode what we want
-	width_p = 800;
-	height_p = 600;
+	bool grey = parser.get<bool>("grey");
+	int width = parser.get<int>("width");
+	int height = parser.get<int>("height");
+	int count = parser.get<int>("count");
+#else
+	bool grey = false;
+        int width = 800;
+        int height = 600;
+        int count = 30;
+#endif
 
 	int ion_fd = ion_open();
 	
@@ -258,9 +238,10 @@ int main(int argc, char *argv[])
 
 	struct V4l2UsageScheme s;
 	memset(&s, 0, sizeof(s));
+	// Only using the clipper v4l2 interface
 	s.useDecimator0 = false;
 	s.useClipper0 = true;
-	s.useMlc0Video = true;
+	s.useMlc0Video = false;
 	int ret = v4l2_init(&s);
 
 	if (ret < 0) {
@@ -271,16 +252,16 @@ int main(int argc, char *argv[])
 
 	struct nxp_vid_buffer bufs[MAX_BUFFER_COUNT];
 	ret = alloc_buffers(ion_fd, MAX_BUFFER_COUNT, bufs,
-			width_p, height_p, FMT_PREVIEW);
+			width, height, FMT_PREVIEW);
 
 	auto baseTime = std::chrono::high_resolution_clock::now();
-	if (ret >= 0 && width_p > 0) {
-		init_preview(width_p, height_p, FMT_PREVIEW);
-		do_preview(bufs, width_p, height_p, count_p, grey);
+	if (ret >= 0 && width > 0) {
+		init_preview(width, height, FMT_PREVIEW);
+		do_preview(bufs, width, height, count, grey);
 	}
 	auto currentTime = std::chrono::high_resolution_clock::now();
 	int secondsPassed = (int)std::chrono::duration_cast<std::chrono::seconds>(currentTime - baseTime).count();
-	printf("Took %i seconds to show %i frames. %f FPS.\n", secondsPassed, count_p, (float)count_p/(float)secondsPassed);
+	printf("Took %i seconds to show %i frames. %f FPS.\n", secondsPassed, count, (float)count/(float)secondsPassed);
 
 	v4l2_exit();
 	close(ion_fd);
