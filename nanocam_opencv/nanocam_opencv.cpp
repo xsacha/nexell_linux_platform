@@ -154,20 +154,10 @@ static int do_preview(struct nxp_vid_buffer *bufs, int width, int height,
 	int i;
 
 	for (i = 0; i < MAX_BUFFER_COUNT; i++) {
-		buf = &bufs[i];
-		v4l2_qbuf(nxp_v4l2_clipper0, buf->plane_num, i, buf, -1, NULL);
+		v4l2_qbuf(nxp_v4l2_clipper0, bufs[i].plane_num, i, bufs + i, -1, NULL);
 	}
 
 	__V4L2_S(v4l2_streamon(nxp_v4l2_clipper0));
-
-	// fill all buffer for display
-	int index = 0;
-	for (i = 0; i < MAX_BUFFER_COUNT; i++) {
-		buf = &bufs[index];
-		v4l2_dqbuf(nxp_v4l2_clipper0, buf->plane_num, &index, NULL);
-		v4l2_qbuf(nxp_v4l2_clipper0, buf->plane_num, index, buf, -1, NULL);
-		index++;
-	}
 
 	int cap_index = 0;
 	cv::namedWindow("preview",1);

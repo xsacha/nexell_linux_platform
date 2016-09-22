@@ -28,11 +28,9 @@ CFLAGS			+= -I../include -I../kernel-headers
 ifeq ($(USE_STATIC_LIB),y)
 LIBS			+= \
 					../libnxv4l2/libv4l2-nexell.a \
-					../libnxmalloc/libnxvmem.a \
 					../libion/libion.a
 else
 LIBS			+= -L../libion -lion
-LIBS			+= -L../libnxmalloc -lnxvmem
 LIBS			+= -L../libnxv4l2 -lv4l2-nexell
 endif
 LIBS			+= -L../prebuilt -lm $(OPENCVLIB)
