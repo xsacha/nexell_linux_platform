@@ -57,8 +57,8 @@ static inline int get_size(int format, int num, int width, int height)
 {
 	int size;
 
-	width = ALIGN(width, 32);
-	height = ALIGN(height, 32);
+	width = ALIGN(width, 128);
+	height = ALIGN(height, 128);
 
 	switch (format) {
 		case V4L2_PIX_FMT_YUV420M:
@@ -169,12 +169,12 @@ static int do_preview(struct nxp_vid_buffer *bufs, int width, int height,
 		cv::Mat out;
 		if (grey)
 		{
-			out = cv::Mat(height, width, CV_8UC1, buf->virt[0], ALIGN(width, 32));
+			out = cv::Mat(height, width, CV_8UC1, buf->virt[0], ALIGN(width, 128));
 		}
 		else
 		{
 			out = cv::Mat(height, width, CV_8UC4);
-			yuv422_2_rgb8888_neon((uint8_t *)out.ptr<unsigned char>(0), (const uint8_t*)buf->virt[0], (const uint8_t*)buf->virt[1], (const uint8_t*)buf->virt[2], width, height, ALIGN(width, 32), width >> 1, width * 4);
+			yuv420_2_rgb8888_neon((uint8_t *)out.ptr<unsigned char>(0), (const uint8_t*)buf->virt[0], (const uint8_t*)buf->virt[1], (const uint8_t*)buf->virt[2], width, height, ALIGN(width, 128), ALIGN(width, 128) >> 1, width * 4);
 		}
 		cv::imshow("preview", out);
 		cv::waitKey(1);
@@ -187,7 +187,7 @@ static int do_preview(struct nxp_vid_buffer *bufs, int width, int height,
 }
 
 // --------------------------------------------------------
-#define FMT_PREVIEW	V4L2_PIX_FMT_YUV422P
+#define FMT_PREVIEW	V4L2_PIX_FMT_YUV420M
 
 int main(int argc, char *argv[])
 {
